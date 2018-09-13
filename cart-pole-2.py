@@ -4,6 +4,12 @@
 # Author: Jan Rudolf
 
 import gym
+import numpy as np
+
+
+def create_key(state, action):
+	return tuple(state.tolist().append(action))
+
 
 class Policy:
 	def __init__(self, action_space):
@@ -23,8 +29,24 @@ class Policy:
 
 class Q:
 	def __init__(self):
-		pass
+		self._returns = dict()
+		self.value = 0
 
+	def _key(self, state, action):
+		key = tuple(state.tolist().append(action))
+		if key not in self._returns:
+			self._returns[key] = list()
+		return key
+
+	def add_return(self, state, action, g):
+		key = self._key(state, action)
+		self._returns[key].append(g)
+
+	def average_return(self, state, action):
+		key = self._key(state, action)
+		if len(self._returns[key]):
+			return np.average(self._returns[key])
+		return 0
 
 if __name__ == '__main__':
 	env = gym.make('CartPole-v1')
@@ -32,6 +54,7 @@ if __name__ == '__main__':
 	epsilon = 0.2
 
 	policy = Policy(env.action_space)
+	q = Q()
 
 	for i_episode in range(20):
 		history = []
@@ -56,4 +79,19 @@ if __name__ == '__main__':
 				print("Episode finished after {} timesteps".format(i+1))
 				break
 
+		#reward sum
+		g = 0
+		gamma = 0.9
+
+		history_went_through = []
 		# update action-value function and policy
+		for history_item in reversed(history):
+			state, action, reward = history_item
+
+			key = create_key(state, action)
+			history_went_through.append(key)
+
+			g = gamma*g + reward
+
+			if key not in  history_went_through:
+				q.add_return(state, action, g)
